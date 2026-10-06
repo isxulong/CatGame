@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>猫抓乐</title>
+<style>
+/* R5/v2：禁长按选择、禁触摸默认行为（双禁） */
+* { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+  background: #000; touch-action: none; overscroll-behavior: none;
+  font-family: "PingFang SC", "Noto Sans SC", sans-serif; }
+canvas.layer { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+
+/* HUD 计分：右上角、不可交互（E6 零可交互控件——计分为不可交互显示元素） */
+#hud-score { position: fixed; top: 12px; right: 16px; z-index: 5;
+  color: rgba(255,255,255,0.85); font-size: 20px; font-weight: 600;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.7); pointer-events: none; display: none; }
+
+/* 长按进度环（R4：DOM conic-gradient + CSS 变量 --p 驱动角度；位置由 JS 按 hotZone() insets 定位（R13）；
+ * 按下即显 0%，取消收缩淡出+灰色×，面积否决红叉（R6），满 100% 150ms 脉冲后直达快捷设置浮层） */
+#hold-ring { position: fixed; left: 36px; top: 36px; z-index: 6; width: 72px; height: 72px;
+  border-radius: 50%; display: none; align-items: center; justify-content: center; pointer-events: none;
+  background: conic-gradient(rgba(79,140,255,0.95) calc(var(--p, 0) * 1turn), rgba(0,0,0,0.45) 0); }
+#hold-ring .hold-ring-inner { width: 54px; height: 54px; border-radius: 50%;
+  background: rgba(10,12,16,0.75); color: #fff; font-size: 15px;
+  display: flex; align-items: center; justify-content: center; }
+#hold-ring.pulse { animation: holdpulse 0.15s ease-out; }
+@keyframes holdpulse { 50% { transform: scale(1.15); } }
+#hold-ring.canceling { transform: scale(0.6); opacity: 0.3; transition: transform 0.25s, opacity 0.25s; }
+#hold-ring.canceling .hold-ring-inner { color: #9aa3b2; }
+#hold-ring.veto { background: conic-gradient(rgba(179,38,30,0.95) 1turn, rgba(0,0,0,0.45) 0); }
+#hold-ring.veto .hold-ring-inner { color: #ff8a80; }
+#hold-veto-toast { position: fixed; z-index: 6; color: #ff8a80; font-size: 13px;
+  background: rgba(10,12,16,0.75); padding: 4px 10px; border-radius: 8px;
+  pointer-events: none; transition: opacity 0.4s; }
+
+/* R5 热区常驻角标：左上角直角括号（两条 12dp 细线、alpha≤0.18、按背景明度自适应低对比、
+ * 静态无动画、纯展示不可交互） */
+#hotzone-mark { position: fixed; z-index: 4; width: 120px; height: 120px; pointer-events: none; }
+#hotzone-mark i { position: absolute; background: rgba(255,255,255,0.18); }
+#hotzone-mark.on-light i { background: rgba(0,0,0,0.18); }
+#hotzone-mark .hz-h { left: 12px; top: 12px; width: 12px; height: 2px; }
+#hotzone-mark .hz-v { left: 12px; top: 12px; width: 2px; height: 12px; }
+
+/* ===== C1 面板规范：固定高对比中性配色（不跟随游戏背景），正文对比度 ≥4.5:1 ===== */
+.panel { position: fixed; inset: 0; z-index: 20; background: #16181d; color: #f2f4f8;
+  display: flex; flex-direction: row; padding: 18px 22px; gap: 22px; box-sizing: border-box;
+  touch-action: auto; }
+.panel.hidden, .hidden { display: none !important; }
+.panel-col { flex: 1.2; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+.panel-col > * { flex-shrink: 0; } /* R8：列滚动而非压缩行高，chips 不再溢出叠行 */
+.panel-col.actions { flex: 0.8; justify-content: center; gap: 18px; }
+.panel-title { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+.row { display: flex; align-items: center; gap: 12px; min-height: 48px; }
+.row.column { flex-direction: column; align-items: stretch; gap: 8px; }
+.row-label { font-size: 15px; color: #d7dce4; min-width: 96px; }
+.slider-wrap { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+/* 调节滑块样式（与验证滑块明确区分：细轨+圆钮+数字回显） */
+.slider-wrap input[type=range] { flex: 1; min-width: 0; height: 48px; accent-color: #4f8cff; } /* R8：数字回显与重置按钮不再被裁 */
+.slider-val { min-width: 64px; font-size: 15px; color: #fff; text-align: right; font-variant-numeric: tabular-nums; }
+.btn-mini { min-width: 56px; min-height: 48px; border: 1px solid #3a4150; background: #232833;
+  color: #cfd6e2; border-radius: 8px; font-size: 14px; }
+.chip-wrap { display: flex; flex-wrap: wrap; gap: 10px; }
+.chip { min-width: 72px; min-height: 48px; border-radius: 24px; border: 1.5px solid #3a4150;
+  background: #232833; color: #cfd6e2; font-size: 15px; padding: 0 18px; }
+.chip.on { background: #4f8cff; border-color: #4f8cff; color: #fff; font-weight: 600; }
+.chip.shake { animation: shake 0.35s; }
+@keyframes shake { 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+.switch { min-width: 88px; min-height: 48px; border-radius: 24px; border: 1.5px solid #3a4150;
+  background: #232833; color: #cfd6e2; font-size: 15px; }
+.switch.on { background: #2e7d4f; border-color: #2e7d4f; color: #fff; font-weight: 600; }
+.bg-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.bg-cell { position: relative; border-radius: 10px; overflow: hidden; cursor: pointer;
+  border: 2px solid transparent; min-height: 64px; }
+.bg-cell.sel { border: 2px solid #4f8cff; } /* C1 选中态 2dp 描边 */
+.bg-thumb { width: 100%; height: 64px; object-fit: cover; display: block; }
+.bg-name { position: absolute; left: 0; bottom: 0; right: 0; font-size: 12px; color: #fff;
+  background: rgba(0,0,0,0.55); padding: 2px 6px; }
+.bg-badge { position: absolute; top: 4px; right: 4px; background: #b3261e; color: #fff;
+  font-size: 11px; padding: 2px 6px; border-radius: 6px; } /* 「不推荐」右上角角标 */
+.bg-badge.weak { background: #8a6d1e; } /* R9：F7 终裁「边缘可用」弱化样式 */
+.preview-wrap { position: relative; width: 100%; aspect-ratio: 16 / 9; border-radius: 10px;
+  overflow: hidden; background: #000; border: 1px solid #3a4150; }
+.pv-bg, .pv-cv { position: absolute; inset: 0; width: 100%; height: 100%; }
+.btn-primary { min-height: 56px; border: none; border-radius: 12px; background: #4f8cff;
+  color: #fff; font-size: 18px; font-weight: 700; padding: 0 32px; } /* C1 主按钮实色填充 */
+/* R2-16 修复：小视口（480×320）操作列按钮收窄 padding + 禁换行，文字不再逐字竖排 */
+.panel-col.actions button { padding-left: 8px; padding-right: 8px; white-space: nowrap;
+  width: 100%; box-sizing: border-box; }
+.btn-secondary { min-height: 48px; border: 1.5px solid #3a4150; border-radius: 12px;
+  background: transparent; color: #cfd6e2; font-size: 16px; padding: 0 24px; }
+.btn-danger { min-height: 48px; border: 1.5px solid #b3261e; border-radius: 12px;
+  background: transparent; color: #ff8a80; font-size: 16px; padding: 0 24px; } /* 次级危险样式 */
+.panel-hint { font-size: 12px; color: #8a93a3; }
+.confirm-overlay { position: fixed; inset: 0; z-index: 30; background: rgba(0,0,0,0.6);
+  display: flex; align-items: center; justify-content: center; }
+.confirm-box { background: #1e222b; border-radius: 14px; padding: 28px; display: flex;
+  flex-direction: column; gap: 16px; min-width: 300px; }
+.confirm-text { font-size: 17px; color: #fff; text-align: center; }
+.debug-panel { position: fixed; left: 0; right: 0; bottom: 0; height: 30vh; z-index: 25; /* R2-13 修复：右侧栏改底部抽屉（原 fixed 右锚与操作列同侧必然重叠，R21 翻转项） */
+  background: #101318; border-top: 1px solid #3a4150; padding: 14px; overflow-y: auto; box-sizing: border-box; }
+.panel.debug-dock { padding-bottom: calc(30vh + 18px); } /* R2-13：调试档打开时面板内容整体上移避让抽屉 */
+.debug-state { font-size: 10px; color: #7ee2a0; white-space: pre-wrap; }
+
+/* ===== B5 首次引导层（沿用 C1 高对比中性配色、≥48dp 触控目标） ===== */
+.guide { position: fixed; inset: 0; z-index: 40; background: rgba(10,12,16,0.94);
+  display: flex; align-items: center; justify-content: center; touch-action: auto; }
+.guide-box { background: #16181d; border-radius: 16px; padding: 28px 32px; max-width: 560px;
+  display: flex; flex-direction: column; gap: 18px; color: #f2f4f8;
+  max-height: calc(100vh - 32px); overflow-y: auto; box-sizing: border-box; } /* R2：小屏限高+可滚动，按钮不被挤出可视区 */
+.guide-item { font-size: 15px; line-height: 1.8; color: #d7dce4; background: #1e222b;
+  border-radius: 10px; padding: 14px 16px; }
+.guide-item b { color: #fff; }
+
+/* ===== R4-07 需求9：游戏内快捷设置浮层（沿用 C1 高对比中性配色；B4 验证滑块样式整体移除） ===== */
+.quick { position: fixed; inset: 0; z-index: 28; background: rgba(10,12,16,0.72);
+  display: flex; align-items: center; justify-content: center; touch-action: auto; }
+.quick-box { background: #16181d; border-radius: 16px; padding: 22px 26px; width: min(560px, 92vw);
+  max-height: calc(100vh - 32px); overflow-y: auto; box-sizing: border-box;
+  display: flex; flex-direction: column; gap: 10px; color: #f2f4f8; }
+.quick-btns { display: flex; gap: 12px; margin-top: 6px; flex-wrap: wrap; }
+.quick-btns button { flex: 1; min-width: 120px; }
+
+/* ===== R4-08 需求6：进游戏退出提示横幅（顶部居中、容器 pointer-events:none 不拦截触摸、避开左上热区与右上计分） ===== */
+#exit-banner { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 15;
+  display: none; align-items: center; gap: 10px; background: rgba(22,24,29,0.88);
+  border: 1px solid #3a4150; border-radius: 20px; padding: 8px 16px;
+  color: #f2f4f8; font-size: 14px; white-space: nowrap; pointer-events: none; transition: opacity 0.4s; }
+#exit-banner.fade { opacity: 0; }
+#exit-banner button { pointer-events: auto; border: none; background: transparent;
+  color: #9db8d8; font-size: 12px; text-decoration: underline; min-height: 32px; }
+
+/* 反馈 5：面板顶部一次性引导条（首启替代全屏引导层） */
+.guide-bar { display: flex; align-items: center; gap: 12px; background: #1e2a3d;
+  border: 1px solid #2f4a6e; border-radius: 10px; padding: 10px 14px; font-size: 14px; color: #cfe0f5; }
+.guide-bar button { margin-left: auto; min-width: 48px; min-height: 36px; border: none;
+  border-radius: 8px; background: transparent; color: #9db8d8; font-size: 16px; }
+/* R12：非首启空闲最后 10s 面板顶部倒计时条 */
+.idle-countdown { display: none; position: absolute; left: 0; bottom: 0; height: 4px; border-radius: 2px; background: #2e7d4f; width: 100%; } /* v1.3.3 P2 修复：脱离 .panel 的 flex 行流，倒计时条不再挤压三列（.panel 为 fixed 定位，直接作包含块） */
+/* 反馈 5：素材未就绪时预览视窗占位 */
+.pv-placeholder { position: absolute; inset: 0; display: flex; align-items: center;
+  justify-content: center; color: #8a93a3; font-size: 14px; pointer-events: none; z-index: 2; }
+.chip.lowvis{filter:grayscale(100%);opacity:.45;position:relative}
+.chip.lowvis::after{content:"此背景下可见度低";position:absolute;left:50%;bottom:-18px;transform:translateX(-50%);font-size:10px;line-height:1.4;padding:1px 8px;border-radius:999px;background:rgba(0,0,0,.72);color:#fff;white-space:nowrap;pointer-events:none}
+</style>
+</head>
+<body>
+<canvas id="bg-layer" class="layer"></canvas>
+<canvas id="sprite-layer" class="layer"></canvas>
+<script src="game/manifest.js"></script>
+<script src="game/js/data.js"></script>
+<script src="game/js/audio.js"></script>
+<script src="game/js/effects.js"></script>
+<script src="game/js/engine.js"></script>
+<script src="game/js/touch.js"></script>
+<script src="game/js/panel.js"></script>
+<script src="game/js/main.js"></script>
+</body>
+</html>

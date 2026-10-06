@@ -1,0 +1,69 @@
+plugins {
+    id 'com.android.application'
+}
+
+// 签名配置：从本地未跟踪的 keystore.properties 或环境变量读取。
+// keystore.properties 与 keystore 文件均不进入版本控制与分发包（见 .gitignore）。
+// 环境变量（CI 场景）：CATCATCH_STORE_FILE / CATCATCH_STORE_PASSWORD /
+//                     CATCATCH_KEY_ALIAS / CATCATCH_KEY_PASSWORD
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+def signStoreFile = keystoreProperties['storeFile'] ?: System.getenv("CATCATCH_STORE_FILE")
+def signStorePassword = keystoreProperties['storePassword'] ?: System.getenv("CATCATCH_STORE_PASSWORD")
+def signKeyAlias = keystoreProperties['keyAlias'] ?: System.getenv("CATCATCH_KEY_ALIAS")
+def signKeyPassword = keystoreProperties['keyPassword'] ?: System.getenv("CATCATCH_KEY_PASSWORD")
+def releaseSigningReady = signStoreFile && signStorePassword && signKeyAlias && signKeyPassword
+
+android {
+    namespace 'com.catcatch.game'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.catcatch.game"
+        minSdk 24
+        targetSdk 34
+        versionCode 9
+        versionName "1.4.1"
+    }
+
+    signingConfigs {
+        release {
+            // 未配置签名信息时留空：release 构建退化为不签名，由 apksigner 线下签名
+            if (releaseSigningReady) {
+                storeFile file(signStoreFile)
+                storePassword signStorePassword
+                keyAlias signKeyAlias
+                keyPassword signKeyPassword
+            }
+        }
+    }
+    buildTypes {
+        debug {
+            // debug 构建保留 MotionEvent 注入测试钩子
+            buildConfigField "boolean", "TEST_HOOKS_ENABLED", "true"
+        }
+        release {
+            // release 构建移除测试钩子
+            buildConfigField "boolean", "TEST_HOOKS_ENABLED", "false"
+            if (releaseSigningReady) {
+                signingConfig signingConfigs.release
+            }
+            minifyEnabled false
+            shrinkResources false
+        }
+    }
+    buildFeatures {
+        buildConfig true
+    }
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
