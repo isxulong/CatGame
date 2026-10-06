@@ -1,0 +1,10 @@
+# 签名材料与本地环境配置——永不入库、永不入分发包
+keystore.properties
+*.keystore
+*.jks
+local.properties
+
+# 构建产物
+build/
+.gradle/
+*.apk
