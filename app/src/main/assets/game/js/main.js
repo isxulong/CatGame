@@ -77,7 +77,7 @@ window.CC = window.CC || {};
       fxLastPoint.set(p.id, { x: p.x, y: p.y });
       // A4 命中判定
       const hit = CC.engine.hitTest(p.x, p.y);
-      if (hit) { CC.engine.onHit(hit); CC.hud.refresh(); }
+      if (hit) { CC.engine.onHit(hit); CC.effects.trigger("hitburst", p.x, p.y); CC.hud.refresh(); } // R6-08：拍中爆裂反馈
       else CC.engine.startle(p.x, p.y); // §7 拍空：附近目标受惊远离 1s
     } else if (ev.action === 2) {
       const q = ev.pts.find(t => fxLastPoint.has(t.id));

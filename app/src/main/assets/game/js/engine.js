@@ -14,7 +14,11 @@ function loadBgShared(name) {
   if (!bgCache.has(name)) {
     bgCache.set(name, new Promise(res => {
       const im = new Image();
-      im.onload = () => res(im);
+      // R6-02 P0-1：onload 仅元数据就绪，decode() 异步预解码后再交付，避免首帧绘制同步解码卡顿
+      im.onload = () => {
+        if (typeof im.decode === "function") im.decode().then(() => res(im), () => res(im));
+        else res(im);
+      };
       im.onerror = () => { bgCache.delete(name); res(null); };
       im.src = `game/bg/${name}.webp`;
     }));
@@ -119,7 +123,12 @@ CC.Engine = class {
         CC.perfLog("img-fail", { src });
         res(null);
       };
-      im.onload = () => { if (!settled) { settled = true; res(im); } };
+      // R6-02 P0-1：onload 仅元数据就绪，decode() 异步预解码后才算加载完成（首帧零同步解码）
+      im.onload = () => {
+        const done = () => { if (!settled) { settled = true; res(im); } };
+        if (typeof im.decode === "function") im.decode().then(done, done);
+        else done();
+      };
       im.onerror = fail;
       setTimeout(fail, 3000); // R3：3s 超时走失败路径
       im.src = src;
@@ -173,8 +182,13 @@ CC.Engine = class {
   /* 体积档变化 → 重新预渲染离屏精灵（v2 §8 初始化按体积档预渲染）。
    * F2： sprites 列表可能稀疏（补齐中），逐槽位预渲染并跳过空槽。 */
   prerender() {
+    // R6-02 P0-2：dirty key 增量守卫——体积档/dpr/勾选集未变时跳过全量重渲染（调参/切类不再触发无关重渲）
+    // R6-02 P1-3：只重渲染已启用分类（未启用分类的实体由 syncCount 退场，无需预渲染）
+    const dirty = CC.config.size + "@" + this.dpr + "@" + CC.config.cats.join(",");
+    if (this._preKey === dirty) return;
+    this._preKey = dirty;
     this._pr = {};
-    for (const cat of CC.CATS) {
+    for (const cat of CC.config.cats) {
       const list = this.sprites[cat]; if (!list) continue;
       for (let i = 0; i < list.length; i++) this._prerenderVariant(cat, i);
     }
@@ -233,9 +247,21 @@ CC.Engine = class {
     else { y = this.H - m; x = m + Math.random() * (this.W - 2 * m); }
     const a = Math.atan2(this.H / 2 - y + (Math.random() - 0.5) * this.H * 0.6,
                          this.W / 2 - x + (Math.random() - 0.5) * this.W * 0.6);
+    // R6-09（裁决1）：品类内个体真实感浮动——体积 ±10% / 速度 ±15%（近似高斯），clamp 0.85–1.15，
+    // spawn 定终身（不随调参漂移）；均值锚定用户设定值（乘性因子期望=1）；
+    // 体积补偿速度：体积每 +1% 速度 -0.5%（spdCompPerSize），补偿上限 ±5%（spdCompMax）。
+    const T = CC.config.tuning || {};
+    const gauss = () => (Math.random() + Math.random() + Math.random() + Math.random() - 2) / 2; // ∈[-1,1]，均值 0
+    const clampF = v => Math.max(0.85, Math.min(1.15, v));
+    const sizeMul = clampF(1 + gauss() * (T.varSizeAmp != null ? T.varSizeAmp : 0.10));
+    const compMax = T.spdCompMax != null ? T.spdCompMax : 0.05;
+    const comp = Math.max(-compMax, Math.min(compMax,
+                 -(sizeMul - 1) * (T.spdCompPerSize != null ? T.spdCompPerSize : 0.5)));
+    const spdMul = clampF(1 + gauss() * (T.varSpeedAmp != null ? T.varSpeedAmp : 0.15) + comp);
     const e = {
       id: this.nextId++, cat, vi,
       x, y, vx: Math.cos(a), vy: Math.sin(a),
+      sizeMul, spdMul,             // R6-09：个体浮动系数，spawn 定终身
       speedMul: 1,                 // 受惊临时倍率
       startleUntil: 0, startleFrom: 0,
       bornAt: performance.now(),   // A5 入场 0.5s 免命中
@@ -337,20 +363,70 @@ CC.Engine = class {
           e.vx = Math.cos(a); e.vy = Math.sin(a);
         }
         break;
-      case "mouse": { // 贴边（≥24dp 安全带）疾走
-        const m = CC.SAFE_BELT + 30;
+      case "mouse": { // R6-03：贴边疾走重写为「巡航边状态机」，消除沿边 vy 高频反转死循环
+        // 旧实现根因：角落并列（dl==dtp）恒走左右分支保留纵向巡航 + 钳制符号翻转 +
+        // 行为层无最小行程随机反向（R<0.3）→ 沿单边 vy 60s 反转 91/93/95 次（三种子基线）。
+        const m = CC.SAFE_BELT; // R6-03：取消原 +30 附加裕量，统一贴 24dp 安全带
+        const near = 24;        // 贴边判定带
         const dl = e.x - m, dr = this.W - m - e.x, dtp = e.y - m, db = this.H - m - e.y;
         const min = Math.min(dl, dr, dtp, db);
-        let tx, ty;
-        if (min === dl || min === dr) { tx = 0; ty = e.vy >= 0 ? 1 : -1; }
-        else { tx = e.vx >= 0 ? 1 : -1; ty = 0; }
-        if (e.stateT > 1 + R() * 1.5 && R() < 0.3) { tx = -tx; ty = -ty; e.stateT = 0; }
-        // 未贴边时先走向最近边
-        if (min > 24) {
-          if (min === dl) { tx = -1; ty = 0; } else if (min === dr) { tx = 1; ty = 0; }
-          else if (min === dtp) { tx = 0; ty = -1; } else { tx = 0; ty = 1; }
+        // 1) 未贴边：直线走向最近边
+        if (min > near) {
+          e.cruiseEdge = null;
+          if (min === dl) { e.vx = -1; e.vy = 0; }
+          else if (min === dr) { e.vx = 1; e.vy = 0; }
+          else if (min === dtp) { e.vx = 0; e.vy = -1; }
+          else { e.vx = 0; e.vy = 1; }
+          break;
         }
-        e.vx = tx; e.vy = ty;
+        // 2) 已贴边：确定/维持巡航边；角落并列时优先「当前速度指向」的边，避免瞬间 90° 换边抖动
+        const onEdge = g => (g === "L" && dl <= near) || (g === "R" && dr <= near) ||
+                            (g === "T" && dtp <= near) || (g === "B" && db <= near);
+        if (!e.cruiseEdge || !onEdge(e.cruiseEdge)) {
+          const cands = [];
+          if (dl <= near) cands.push("L");
+          if (dr <= near) cands.push("R");
+          if (dtp <= near) cands.push("T");
+          if (db <= near) cands.push("B");
+          if (cands.length > 1) {
+            const score = { L: e.vx < 0 ? 1 : 0, R: e.vx > 0 ? 1 : 0, T: e.vy < 0 ? 1 : 0, B: e.vy > 0 ? 1 : 0 };
+            cands.sort((a2, b2) => score[b2] - score[a2]);
+          }
+          e.cruiseEdge = cands[0];
+          e.cruiseDir = 0; // 换边后由下方按当前速度分量初始化巡航方向
+        }
+        // 3) 巡航方向：初始化后至少维持 2s（R6 阈值表：老鼠单向 ≥2s 才允许反向）
+        if (!e.cruiseDir) {
+          e.cruiseDir = (e.cruiseEdge === "L" || e.cruiseEdge === "R")
+            ? (e.vy >= 0 ? 1 : -1) : (e.vx >= 0 ? 1 : -1);
+          e.lastReverseAt = now;
+        }
+        if (e.stateT > 1 + R() * 1.5 && R() < 0.3 && now - (e.lastReverseAt || 0) >= 2000) {
+          e.cruiseDir = -e.cruiseDir; e.lastReverseAt = now; e.stateT = 0;
+        }
+        // 4) 到角换边：巡航前方邻边已进入贴边带 → 绕角 90° 换边，绕墙方向连续（不反向、不符号翻转）
+        // [当前边][到达的角] → [新边, 新巡航方向]
+        const TURN = {
+          L: { up: ["T", 1], down: ["B", 1] },     // 左上→沿顶向右；左下→沿底向右
+          R: { up: ["T", -1], down: ["B", -1] },   // 右上→沿顶向左；右下→沿底向左
+          T: { right: ["R", 1], left: ["L", 1] },  // 右上→沿右向下；左上→沿左向下
+          B: { right: ["R", -1], left: ["L", -1] } // 右下→沿右向上；左下→沿左向上
+        };
+        let corner = null;
+        if (e.cruiseEdge === "L" || e.cruiseEdge === "R") {
+          if (e.cruiseDir < 0 && dtp <= near) corner = "up";
+          else if (e.cruiseDir > 0 && db <= near) corner = "down";
+        } else {
+          if (e.cruiseDir > 0 && dr <= near) corner = "right";
+          else if (e.cruiseDir < 0 && dl <= near) corner = "left";
+        }
+        if (corner) {
+          const t = TURN[e.cruiseEdge][corner];
+          e.cruiseEdge = t[0]; e.cruiseDir = t[1];
+          e.lastReverseAt = now; // 换边重置反向冷却
+        }
+        if (e.cruiseEdge === "L" || e.cruiseEdge === "R") { e.vx = 0; e.vy = e.cruiseDir; }
+        else { e.vx = e.cruiseDir; e.vy = 0; }
         break;
       }
       case "goldfish": { // 平滑曲线（贝塞尔感：正弦扰动转向）
@@ -391,7 +467,7 @@ CC.Engine = class {
       if (now - e.bornAt < 500) continue;          // A5 入场 0.5s 免命中
       const v = this.variantOf(e);                // R4-02：按槽位动态解析（空槽回退首个可用）
       if (!v) continue;
-      const rx = v.wDp * 0.4, ry = v.hDp * 0.4;   // 内接椭圆 ≈ 主体 80%
+      const rx = v.wDp * 0.4 * (e.sizeMul || 1), ry = v.hDp * 0.4 * (e.sizeMul || 1); // 内接椭圆 ≈ 主体 80%（R6-09 随个体体积浮动）
       const dx = (x - e.x) / rx, dy = (y - e.y) / ry;
       const q = dx * dx + dy * dy;
       if (q <= 1) {
@@ -474,7 +550,7 @@ CC.Engine = class {
         const k = now < e.startleUntil ? 1 : Math.max(0, 1 - (now - e.startleUntil) / 300);
         mul = baseMul * (1 + (CC.debug.startleMul - 1) * k);
       }
-      let sp = CC.BASE_SPEED_DPS[e.cat] * mul;
+      let sp = CC.BASE_SPEED_DPS[e.cat] * mul * (e.spdMul || 1); // R6-09：个体速度浮动（spawn 定终身）
       if (e.state === "pause" || e.state === "hover") sp *= e.cat === "housefly" ? 0 : 0.15;
       const dx = e.vx * sp * dt, dy = e.vy * sp * dt;
       e.x += dx; e.y += dy;
@@ -482,19 +558,22 @@ CC.Engine = class {
       e.pathAcc += Math.hypot(dx, dy);
       e.sampleWin.push({ t: now, acc: e.pathAcc, moving: sp > 1 });
       while (e.sampleWin.length && now - e.sampleWin[0].t > 3000) e.sampleWin.shift();
-      // 触边钳制 + 随机反弹转向（§7：目标物不得完全离场，≥24dp 安全带）
+      // 触边钳制 + 转向朝内（§7：目标物不得完全离场，≥24dp 安全带）
+      // R6-03：不再做速度符号翻转（反弹回头是沿边死循环的推手之一），统一朝内半圆重选朝向
       const m = CC.SAFE_BELT;
-      if (e.x < m) { e.x = m; e.vx = Math.abs(e.vx); this._jitter(e); }
-      if (e.x > this.W - m) { e.x = this.W - m; e.vx = -Math.abs(e.vx); this._jitter(e); }
-      if (e.y < m) { e.y = m; e.vy = Math.abs(e.vy); this._jitter(e); }
-      if (e.y > this.H - m) { e.y = this.H - m; e.vy = -Math.abs(e.vy); this._jitter(e); }
+      if (e.x < m) { e.x = m; this._turnInward(e, 0); }
+      if (e.x > this.W - m) { e.x = this.W - m; this._turnInward(e, Math.PI); }
+      if (e.y < m) { e.y = m; this._turnInward(e, Math.PI / 2); }
+      if (e.y > this.H - m) { e.y = this.H - m; this._turnInward(e, -Math.PI / 2); }
     }
     for (let i = this.entities.length - 1; i >= 0; i--) if (this.entities[i].dead) this.entities.splice(i, 1);
   }
 
-  _jitter(e) {
-    if (e.cat === "mouse") return; // 老鼠贴边转向由行为层处理
-    const a = Math.atan2(e.vy, e.vx) + (Math.random() - 0.5) * 1.2;
+  /* R6-03：转向朝内——以 baseAngle（指向屏内方向）为中心 ±60° 重选朝向，替代钳制符号翻转。
+   * 老鼠的方向完全由贴边巡航状态机管理（含绕角换边），钳制仅回拉位置、不改其朝向。 */
+  _turnInward(e, baseAngle) {
+    if (e.cat === "mouse") return;
+    const a = baseAngle + (Math.random() - 0.5) * 2.1; // ±60°
     e.vx = Math.cos(a); e.vy = Math.sin(a);
   }
 
@@ -506,7 +585,7 @@ CC.Engine = class {
       const v = this.variantOf(e);                // R4-02：按槽位动态解析（空槽回退首个可用）
       if (!v) continue;
       const x = e.x * dpr, y = e.y * dpr;
-      const w = v.wDp * dpr, h = v.hDp * dpr;
+      const w = v.wDp * dpr * (e.sizeMul || 1), h = v.hDp * dpr * (e.sizeMul || 1); // R6-09：个体体积浮动（±10%）
       // D2 接触阴影：尺寸/透明度随体积档缩放，全局光源左上 45° → 阴影偏移右下
       const shW = w * 0.9, shH = w * 0.45;
       ctx.globalAlpha = 0.5 + 0.1 * Math.sin(now / 400 + e.phase); // 阴影脉动
@@ -561,7 +640,7 @@ CC.Engine = class {
       }
       const dt = moveT / 1000;
       return { id: e.id, cat: e.cat, dps: dt > 0.1 ? dist / dt : null,
-               expected: CC.BASE_SPEED_DPS[e.cat] * CC.config.speed,
+               expected: CC.BASE_SPEED_DPS[e.cat] * CC.config.speed * (e.spdMul || 1), // R6-09：期望值含个体浮动
                startled: now < e.startleUntil + 300 };
     });
   }

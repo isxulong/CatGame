@@ -21,6 +21,13 @@ CC.panel = (function () {
   function save() { CC.store.save("cc_config", CC.config); }
   function saveDebug() { CC.store.save("cc_debug", CC.debug); }
 
+  /* R6-02 P1-2：滑杆 input 事件 180ms 防抖（阈值表 150–200ms），松手后一次全量 prerender/预览刷新 */
+  let liveDebTimer = null;
+  function liveDebounced() {
+    if (liveDebTimer) clearTimeout(liveDebTimer);
+    liveDebTimer = setTimeout(() => { liveDebTimer = null; live(); }, 180);
+  }
+
   /* ---------- 滑块控件（调节滑块：步进吸附+数字回显+重置） ---------- */
   function sliderRow(label, get, set, min, max, step, fmt, def) {
     const row = el("div", "row");
@@ -33,7 +40,7 @@ CC.panel = (function () {
     inp.addEventListener("input", () => {
       let v = Math.round(parseFloat(inp.value) / step) * step; // 0.25 步进吸附
       v = Math.min(max, Math.max(min, v));
-      set(v); val.textContent = fmt(v); save(); touchIdle(); live();
+      set(v); val.textContent = fmt(v); save(); touchIdle(); liveDebounced(); // R6-02 P1-2：拖动期防抖，松手一次全量刷新
     });
     const reset = el("button", "btn-mini", "重置");
     reset.addEventListener("click", () => { set(def); inp.value = def; val.textContent = fmt(def); save(); touchIdle(); live(); });
@@ -55,21 +62,38 @@ CC.panel = (function () {
     return row;
   }
 
-  /* R4-11 需求1配套：黑背景低可见度提示（仅提示不禁选；浅背景即时消失） */
-  CC.lowvisCat = function (c) {
-    return (CC.DARK_BGS || []).includes(CC.config.bg) && (CC.LOWVIS_CATS || []).includes(c);
-  };
-  CC.refreshLowvis = function () {
-    document.querySelectorAll(".chip[data-cat]").forEach(ch => ch.classList.toggle("lowvis", !!CC.lowvisCat(ch.dataset.cat)));
-  };
-  /* R9 背景角标分级：裁判 F7 实测裁决（CC.F7_VERDICT，data.js）取代 D1 预筛单档。
-   * bad=不推荐（红）、weak=边缘可用（琥珀 #8a6d1e）、ok=无角标；仅统计当前所选品类。 */
-  function bgVerdict(bgName) {
-    const v = CC.F7_VERDICT || { notRecommended: [], marginal: [] };
-    const hit = list => CC.config.cats.some(c => list.some(p => p[0] === c && p[1] === bgName));
-    if (hit(v.notRecommended)) return "bad";
-    if (hit(v.marginal)) return "weak";
+  /* R6-05 匹配度动态判定（取代 R9 静态 F7_VERDICT 名单）：
+   * dY 明度差 / dH 主色相差 / 纹理标记 三维度离线预计算入 manifest.match（运行时零图像处理），
+   * 运行时按 CC.config.tuning.match 阈值对「所选品类 × 背景」即时求值——改阈值重启即生效。
+   * 裁决5：「不推荐」只能由 dY 直接命中（主阈值 / dH 辅助 / 高纹理辅助 / 近黑专项 四分支均 dY 前置）。
+   * R7-01（终裁 B 案）第四分支：bg ∈ nearBlack.bgs 且 dY < nearBlack.dyMax → 不推荐，
+   * 修复苍蝇×纯黑落入 (dyAux, dyMax) 真空带不挂标；bg 名单仅收紧、dY 直接命中，与既有辅助分支同构。
+   * bad=不推荐（红标，样式同 R6-04）；ok=中性不挂标；rec=推荐（绿标，配置项默认关）。
+   * R6-04：苍蝇×纯黑由本规则统一产出「不推荐」，原 lowvis 置灰体系已整体下线。 */
+  function cellVerdict(cat, bgName) {
+    const m = CC.engine && CC.engine.manifest && CC.engine.manifest.match;
+    const t = (CC.config.tuning && CC.config.tuning.match) || {};
+    const cell = m && m[cat] && m[cat][bgName];
+    if (!cell) return "ok";
+    if (cell.dY < (t.dyMain != null ? t.dyMain : 40)) return "bad";
+    if (cell.dY < (t.dyAux != null ? t.dyAux : 60) && cell.dH < (t.dhAux != null ? t.dhAux : 30)) return "bad";
+    if (cell.tex && cell.dY < (t.dyTex != null ? t.dyTex : 50) && cell.dH < (t.dhTex != null ? t.dhTex : 45)) return "bad";
+    /* R7-01 近黑专项（第四分支，置于「推荐」档判定之前；回退默认与 tuning 出厂值一致） */
+    const nb = t.nearBlack || {};
+    if ((nb.bgs || ["black"]).includes(bgName) &&
+        cell.dY < (nb.dyMax != null ? nb.dyMax : 80)) return "bad";
+    if (t.showRecommendBadge &&
+        cell.dY >= (t.dyRec != null ? t.dyRec : 80) && cell.dH >= (t.dhRec != null ? t.dhRec : 45)) return "rec";
     return "ok";
+  }
+  function bgVerdict(bgName) {
+    let rec = false;
+    for (const c of CC.config.cats) {
+      const v = cellVerdict(c, bgName);
+      if (v === "bad") return "bad"; // 任一所选品类不推荐即挂红标
+      if (v === "rec") rec = true;
+    }
+    return rec ? "rec" : "ok";
   }
 
   function build() {
@@ -116,21 +140,25 @@ CC.panel = (function () {
     catRow.appendChild(el("div", "row-label", "目标种类（至少 1 种）"));
     const catWrap = el("div", "chip-wrap");
     for (const c of CC.CATS) {
-      const chip = el("button", "chip" + (CC.config.cats.includes(c) ? " on" : "") + (CC.lowvisCat && CC.lowvisCat(c) ? " lowvis" : ""), CC.CAT_LABEL[c]);
+      const chip = el("button", "chip" + (CC.config.cats.includes(c) ? " on" : ""), CC.CAT_LABEL[c]);
       chip.dataset.cat = c;
       chip.addEventListener("click", () => {
         const on = CC.config.cats.includes(c);
         if (on && CC.config.cats.length === 1) { chip.classList.add("shake"); setTimeout(() => chip.classList.remove("shake"), 400); return; } // 取消全选拦截
-        if (on) CC.config.cats = CC.config.cats.filter(x => x !== c);
-        else {
+        if (on) {
+          CC.config.cats = CC.config.cats.filter(x => x !== c);
+          save(); touchIdle(); live(); refreshBgBadges();
+        } else {
           CC.config.cats.push(c);
           // R3-01 修复（体验配套）：勾选新增种类即时解码素材，完成后 live() 让预览区立即可见。
           // _loadCat 幂等槽位去重，已解码种类零开销；预览引擎共享 sprites 引用，
           // live() 内 previewEngine.prerender() 即完成预览侧预渲染。
+          // R6-02 P1-1：一次切换只触发一次 live()（原 .then(live) 与同步 live() 双触发，
+          // 预览引擎重复全量预渲染）；取消勾选分支同样只走一次同步 live()。
           CC.engine._loadCat(c, 3).then(() => live());
+          save(); touchIdle();
         }
-        chip.className = "chip" + (CC.config.cats.includes(c) ? " on" : "") + (CC.lowvisCat && CC.lowvisCat(c) ? " lowvis" : "");
-        save(); touchIdle(); live(); refreshBgBadges();
+        chip.className = "chip" + (CC.config.cats.includes(c) ? " on" : "");
       });
       catWrap.appendChild(chip);
     }
@@ -239,16 +267,14 @@ CC.panel = (function () {
 
   function refreshBgBadges() {
     if (!root) return; // R9：面板未构建时不刷新（boot 早期调用防护）
+    // R6-05：三档简化为 bad/ok（+可配置 rec）；R6-04：weak 琥珀档与 lowvis 置灰体系一并下线
     root.querySelectorAll(".bg-cell").forEach(cell => {
       const v = bgVerdict(cell.dataset.bg);
       const badge = cell.querySelector(".bg-badge");
       if (v === "ok") { badge.className = "bg-badge hidden"; return; }
-      badge.className = "bg-badge" + (v === "weak" ? " weak" : ""); // R9：weak→琥珀底
-      badge.textContent = v === "weak" ? "边缘可用" : "不推荐";
+      badge.className = "bg-badge" + (v === "rec" ? " rec" : "");
+      badge.textContent = v === "rec" ? "推荐" : "不推荐";
     });
-    // R5-01 修复：refreshLowvis 移出 forEach——原写在非 "ok" 分支内，全 cell 判 "ok" 时零执行
-    //（默认仅蝴蝶切黑背景，苍蝇 chip 不置灰）；现每次刷新末尾无条件执行一次，顺带消除逐 cell 重复调用。
-    if (CC.refreshLowvis) CC.refreshLowvis(); // R4-11：背景切换后低可见度提示即时刷新
   }
 
   /* 实时预览视窗：同一 Engine 类、同一参数源（C3） */
@@ -374,7 +400,7 @@ CC.panel = (function () {
     if (!root) build();
     // R5-02 修复：open() 复用分支「真值→DOM」全量回刷（build() 只在首建时写值）。
     // 覆盖裁判列全的 11 项：体积/速度/数量/空闲 4 滑块（input.value + 数字回显）、
-    // 目标种类 chips（on + lowvis 两态）、动效样式 chips（on）、触摸动效/环境音/命中音/显示计分
+    // 目标种类 chips（on 态；R6-04 lowvis 置灰态已下线）、动效样式 chips（on）、触摸动效/环境音/命中音/显示计分
     // 4 开关、背景格 sel——快捷浮层等面板外写入路径改过的真值，回主菜单即正确呈现。
     if (reused) {
       syncers.forEach(fn => fn());
@@ -387,7 +413,7 @@ CC.panel = (function () {
       root.querySelectorAll(".bg-cell").forEach(cell => {
         cell.className = "bg-cell" + (CC.config.bg === cell.dataset.bg ? " sel" : "");
       });
-      if (CC.refreshLowvis) CC.refreshLowvis(); // 种类 chips lowvis 态随真值重算
+      refreshBgBadges(); // R6-05：角标随真值重算（取代原 refreshLowvis 置灰回刷）
     }
     // R2-02 修复：同会话关→开复用已构建 DOM 时，已见引导条须移除（原仅 build() 判断一次，关开必复现）
     if (localStorage.getItem("cc_guide_bar_seen")) {
@@ -469,7 +495,7 @@ CC.guide = (function () {
         3. 浮层内可快速调节、返回主菜单或退出 App</div>
         <div class="guide-item"><b>使用建议</b><br>
         · 建议贴膜（钢化膜）后再给猫玩，防抓伤屏幕<br>
-        · 建议在系统设置中开启「屏幕固定」，进一步防误退<br>
+        · 游戏为全屏沉浸模式；误触呼出系统栏会自动收回（≤1 秒），游戏进度不受影响<br>
         · 猫爪拍屏只会触发动效，不会打开任何界面</div>
         <button class="btn-primary" id="guide-ok">已知晓</button>
       </div>`;
@@ -554,7 +580,7 @@ CC.quick = (function () {
     catRow.appendChild(el("div", "row-label", "目标种类（至少 1 种）"));
     const catWrap = el("div", "chip-wrap");
     for (const c of CC.CATS) {
-      const chip = el("button", "chip" + (CC.config.cats.includes(c) ? " on" : "") + (CC.lowvisCat && CC.lowvisCat(c) ? " lowvis" : ""), CC.CAT_LABEL[c]);
+      const chip = el("button", "chip" + (CC.config.cats.includes(c) ? " on" : ""), CC.CAT_LABEL[c]);
       chip.dataset.cat = c;
       chip.addEventListener("click", () => {
         const on = CC.config.cats.includes(c);
@@ -564,7 +590,7 @@ CC.quick = (function () {
           CC.config.cats.push(c);
           CC.engine._loadCat(c, 3); // 新勾种类即时解码（幂等槽位去重；「继续游戏」统一 await 补齐）
         }
-        chip.className = "chip" + (CC.config.cats.includes(c) ? " on" : "") + (CC.lowvisCat && CC.lowvisCat(c) ? " lowvis" : "");
+        chip.className = "chip" + (CC.config.cats.includes(c) ? " on" : "");
         save();
       });
       catWrap.appendChild(chip);

@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-05",
+ "generated": "2026-10-06",
  "license_whitelist": [
   "Pixabay",
   "Pexels",
@@ -16,7 +16,34 @@
     848,
     449
    ],
-   "meanY": 102.4
+   "meanY": 102.4,
+   "subjectMeanY": 102.3,
+   "subjectDomHue": 27.2,
+   "measure_note": "R6-05 复测口径：身体层 alpha>16，Y=0.299R+0.587G+0.114B；meanY 为 v1.4.1 留档旧口径，保留溯源",
+   "wing_mirror": {
+    "axis_x": 424,
+    "donor": "left",
+    "before": {
+     "span_l": 421,
+     "span_r": 62,
+     "span_diff_pct": 85.27,
+     "area_l": 108916,
+     "area_r": 5134,
+     "area_diff_pct": 95.29
+    },
+    "after": {
+     "span_l": 421,
+     "span_r": 421,
+     "span_diff_pct": 0.0,
+     "area_l": 108916,
+     "area_r": 108916,
+     "area_diff_pct": 0.0
+    },
+    "px": [
+     848,
+     449
+    ]
+   }
   },
   {
    "name": "housefly_2",
@@ -28,7 +55,34 @@
     610,
     653
    ],
-   "meanY": 93.7
+   "meanY": 93.7,
+   "subjectMeanY": 94.6,
+   "subjectDomHue": 36.3,
+   "measure_note": "R6-05 复测口径：身体层 alpha>16，Y=0.299R+0.587G+0.114B；meanY 为 v1.4.1 留档旧口径，保留溯源",
+   "wing_mirror": {
+    "axis_x": 305,
+    "donor": "left",
+    "before": {
+     "span_l": 302,
+     "span_r": 302,
+     "span_diff_pct": 0.0,
+     "area_l": 63815,
+     "area_r": 62147,
+     "area_diff_pct": 2.61
+    },
+    "after": {
+     "span_l": 302,
+     "span_r": 302,
+     "span_diff_pct": 0.0,
+     "area_l": 63815,
+     "area_r": 63815,
+     "area_diff_pct": 0.0
+    },
+    "px": [
+     610,
+     653
+    ]
+   }
   },
   {
    "name": "housefly_3",
@@ -37,10 +91,39 @@
    "license": "Pexels License (https://www.pexels.com/license/)",
    "download_date": "2026-10-06",
    "px": [
-    760,
-    701
+    561,
+    601
    ],
-   "meanY": 63.3
+   "meanY": 63.3,
+   "subjectMeanY": 90.8,
+   "subjectDomHue": 36.0,
+   "measure_note": "R6-05 复测口径：身体层 alpha>16，Y=0.299R+0.587G+0.114B；meanY 为 v1.4.1 留档旧口径，保留溯源",
+   "derived_from": "housefly_2",
+   "derivation_note": "外部图源（Wikimedia/Pexels/Pixabay）沙箱网络不可达，重选源路线受阻；按 R6-10 以 housefly_2 基准派生，同源 Pexels 许可，待真机目检",
+   "wing_mirror": {
+    "axis_x": 380,
+    "donor": "left",
+    "before": {
+     "span_l": 377,
+     "span_r": 26,
+     "span_diff_pct": 93.1,
+     "area_l": 45622,
+     "area_r": 1582,
+     "area_diff_pct": 96.53
+    },
+    "after": {
+     "span_l": 377,
+     "span_r": 377,
+     "span_diff_pct": 0.0,
+     "area_l": 45622,
+     "area_r": 45622,
+     "area_diff_pct": 0.0
+    },
+    "px": [
+     760,
+     701
+    ]
+   }
   },
   {
    "name": "butterfly_1",
@@ -52,7 +135,10 @@
     1528,
     1192
    ],
-   "meanY": 94.0
+   "meanY": 94.0,
+   "subjectMeanY": 85.3,
+   "subjectDomHue": 23.5,
+   "measure_note": "R6-05 复测口径：身体层 alpha>16，Y=0.299R+0.587G+0.114B；meanY 为 v1.4.1 留档旧口径，保留溯源"
   },
   {
    "name": "butterfly_2",
@@ -64,7 +150,10 @@
     803,
     899
    ],
-   "meanY": 186.7
+   "meanY": 186.7,
+   "subjectMeanY": 173.1,
+   "subjectDomHue": 42.9,
+   "measure_note": "R6-05 复测口径：身体层 alpha>16，Y=0.299R+0.587G+0.114B；meanY 为 v1.4.1 留档旧口径，保留溯源"
   },
   {
    "name": "butterfly_3",
@@ -76,7 +165,10 @@
     766,
     647
    ],
-   "meanY": 165.0
+   "meanY": 165.0,
+   "subjectMeanY": 159.3,
+   "subjectDomHue": 44.3,
+   "measure_note": "R6-05 复测口径：身体层 alpha>16，Y=0.299R+0.587G+0.114B；meanY 为 v1.4.1 留档旧口径，保留溯源"
   },
   {
    "name": "bee_1",
@@ -88,7 +180,10 @@
     1070,
     774
    ],
-   "meanY": 66.2
+   "meanY": 66.2,
+   "subjectMeanY": 66.2,
+   "subjectDomHue": 17.0,
+   "measure_note": "R6-05 复测口径：身体层 alpha>16，Y=0.299R+0.587G+0.114B；meanY 为 v1.4.1 留档旧口径，保留溯源"
   },
   {
    "name": "bee_2",
@@ -100,7 +195,10 @@
     1120,
     900
    ],
-   "meanY": 79.5
+   "meanY": 79.5,
+   "subjectMeanY": 79.8,
+   "subjectDomHue": 14.3,
+   "measure_note": "R6-05 复测口径：身体层 alpha>16，Y=0.299R+0.587G+0.114B；meanY 为 v1.4.1 留档旧口径，保留溯源"
   },
   {
    "name": "bee_3",
@@ -112,7 +210,10 @@
     1081,
     1488
    ],
-   "meanY": 92.6
+   "meanY": 92.6,
+   "subjectMeanY": 79.4,
+   "subjectDomHue": 29.7,
+   "measure_note": "R6-05 复测口径：身体层 alpha>16，Y=0.299R+0.587G+0.114B；meanY 为 v1.4.1 留档旧口径，保留溯源"
   },
   {
    "name": "mouse_1",
@@ -124,7 +225,10 @@
     1920,
     1280
    ],
-   "meanY": 115.6
+   "meanY": 115.6,
+   "subjectMeanY": 106.1,
+   "subjectDomHue": 28.4,
+   "measure_note": "R6-05 复测口径：身体层 alpha>16，Y=0.299R+0.587G+0.114B；meanY 为 v1.4.1 留档旧口径，保留溯源"
   },
   {
    "name": "mouse_2",
@@ -136,7 +240,10 @@
     1485,
     633
    ],
-   "meanY": 200.5
+   "meanY": 200.5,
+   "subjectMeanY": 175.3,
+   "subjectDomHue": 33.1,
+   "measure_note": "R6-05 复测口径：身体层 alpha>16，Y=0.299R+0.587G+0.114B；meanY 为 v1.4.1 留档旧口径，保留溯源"
   },
   {
    "name": "mouse_3",
@@ -148,7 +255,10 @@
     1558,
     973
    ],
-   "meanY": 141.2
+   "meanY": 141.2,
+   "subjectMeanY": 131.6,
+   "subjectDomHue": 31.9,
+   "measure_note": "R6-05 复测口径：身体层 alpha>16，Y=0.299R+0.587G+0.114B；meanY 为 v1.4.1 留档旧口径，保留溯源"
   },
   {
    "name": "goldfish_1",
@@ -160,7 +270,10 @@
     1344,
     900
    ],
-   "meanY": 159.4
+   "meanY": 159.4,
+   "subjectMeanY": 159.3,
+   "subjectDomHue": 124.3,
+   "measure_note": "R6-05 复测口径：身体层 alpha>16，Y=0.299R+0.587G+0.114B；meanY 为 v1.4.1 留档旧口径，保留溯源"
   },
   {
    "name": "goldfish_2",
@@ -172,7 +285,10 @@
     900,
     1200
    ],
-   "meanY": 144.7
+   "meanY": 144.7,
+   "subjectMeanY": 144.7,
+   "subjectDomHue": 35.9,
+   "measure_note": "R6-05 复测口径：身体层 alpha>16，Y=0.299R+0.587G+0.114B；meanY 为 v1.4.1 留档旧口径，保留溯源"
   },
   {
    "name": "goldfish_3",
@@ -184,7 +300,10 @@
     1313,
     900
    ],
-   "meanY": 132.1
+   "meanY": 132.1,
+   "subjectMeanY": 132.2,
+   "subjectDomHue": 30.4,
+   "measure_note": "R6-05 复测口径：身体层 alpha>16，Y=0.299R+0.587G+0.114B；meanY 为 v1.4.1 留档旧口径，保留溯源"
   },
   {
    "name": "ladybug_1",
@@ -196,7 +315,10 @@
     1543,
     961
    ],
-   "meanY": 64.3
+   "meanY": 64.3,
+   "subjectMeanY": 59.6,
+   "subjectDomHue": 31.7,
+   "measure_note": "R6-05 复测口径：身体层 alpha>16，Y=0.299R+0.587G+0.114B；meanY 为 v1.4.1 留档旧口径，保留溯源"
   },
   {
    "name": "ladybug_2",
@@ -208,7 +330,10 @@
     530,
     549
    ],
-   "meanY": 60.8
+   "meanY": 60.8,
+   "subjectMeanY": 60.8,
+   "subjectDomHue": 18.7,
+   "measure_note": "R6-05 复测口径：身体层 alpha>16，Y=0.299R+0.587G+0.114B；meanY 为 v1.4.1 留档旧口径，保留溯源"
   },
   {
    "name": "ladybug_3",
@@ -220,7 +345,10 @@
     742,
     939
    ],
-   "meanY": 69.5
+   "meanY": 69.5,
+   "subjectMeanY": 69.5,
+   "subjectDomHue": 7.6,
+   "measure_note": "R6-05 复测口径：身体层 alpha>16，Y=0.299R+0.587G+0.114B；meanY 为 v1.4.1 留档旧口径，保留溯源"
   }
  ],
  "backgrounds": [
@@ -233,7 +361,10 @@
     1920,
     1080
    ],
-   "meanY": 146.4
+   "meanY": 146.4,
+   "domHue": 31.3,
+   "tex": false,
+   "meanY_measured": 146.4
   },
   {
    "name": "grass",
@@ -244,7 +375,10 @@
     1920,
     1080
    ],
-   "meanY": 116.8
+   "meanY": 116.8,
+   "domHue": 85.7,
+   "tex": true,
+   "meanY_measured": 116.9
   },
   {
    "name": "tile",
@@ -255,7 +389,10 @@
     1920,
     1080
    ],
-   "meanY": 168.1
+   "meanY": 168.1,
+   "domHue": 187.5,
+   "tex": false,
+   "meanY_measured": 168.2
   },
   {
    "name": "carpet",
@@ -266,7 +403,10 @@
     1920,
     1080
    ],
-   "meanY": 119.3
+   "meanY": 119.3,
+   "domHue": 31.8,
+   "tex": true,
+   "meanY_measured": 119.4
   },
   {
    "name": "desk",
@@ -277,7 +417,10 @@
     1920,
     1080
    ],
-   "meanY": 190.3
+   "meanY": 190.3,
+   "domHue": 52.1,
+   "tex": false,
+   "meanY_measured": 190.4
   },
   {
    "name": "black",
@@ -288,7 +431,10 @@
     1920,
     1080
    ],
-   "meanY": 26.8
+   "meanY": 26.8,
+   "domHue": null,
+   "tex": false,
+   "meanY_measured": 26.8
   }
  ],
  "base_width_dp": {
@@ -300,7 +446,7 @@
   "goldfish": 66
  },
  "prescreen_threshold_dY": 60,
- "prescreen_note": "已被 F7_VERDICT 取代、仅存档（R5-05）；运行时无消费方",
+ "prescreen_note": "v1.4.1 静态预筛存档（R5-05）；运行时消费方为 manifest.match（R6-05.v1）",
  "prescreen": [
   {
    "category": "housefly",
@@ -590,5 +736,252 @@
    "dY": 39.8,
    "verdict": "不推荐"
   }
- ]
+ ],
+ "match_rule_ver": "R6-05.v2",
+ "match_rule": {
+  "bad": "dY<40 | (dY<60 && dH<30) | (tex && dY<50 && dH<45) | (bg in nearBlack.bgs && dY<nearBlack.dyMax)",
+  "rec": "dY>=80 && dH>=45 (默认不挂标, showRecommendBadge=false)",
+  "tex_bgs": [
+   "grass",
+   "carpet"
+  ],
+  "dH_achromatic_convention": "无彩色侧 dH=0（饱和像素占比<1% 或有效像素<50）",
+  "subject_def": "身体层 alpha>16；翅膀叠加层不计入",
+  "thresholds": {
+   "dyMain": 40,
+   "dyAux": 60,
+   "dhAux": 30,
+   "dyTex": 50,
+   "dhTex": 45,
+   "dyRec": 80,
+   "dhRec": 45
+  },
+  "nearBlack": {
+   "bgs": [
+    "black"
+   ],
+   "dyMax": 80
+  },
+  "thresholds_status": "真机校准项（第四章暂定值）"
+ },
+ "categories": {
+  "ladybug": {
+   "repMeanY": 60.8,
+   "repDomHue": 22.9
+  },
+  "housefly": {
+   "repMeanY": 94.6,
+   "repDomHue": 33.9
+  },
+  "bee": {
+   "repMeanY": 79.4,
+   "repDomHue": 24.1
+  },
+  "butterfly": {
+   "repMeanY": 159.3,
+   "repDomHue": 29.6
+  },
+  "mouse": {
+   "repMeanY": 131.6,
+   "repDomHue": 29.2
+  },
+  "goldfish": {
+   "repMeanY": 144.7,
+   "repDomHue": 39.2
+  }
+ },
+ "match": {
+  "ladybug": {
+   "wood": {
+    "dY": 85.6,
+    "dH": 8.4,
+    "tex": false
+   },
+   "grass": {
+    "dY": 56.1,
+    "dH": 62.8,
+    "tex": true
+   },
+   "tile": {
+    "dY": 107.4,
+    "dH": 164.6,
+    "tex": false
+   },
+   "carpet": {
+    "dY": 58.6,
+    "dH": 8.9,
+    "tex": true
+   },
+   "desk": {
+    "dY": 129.6,
+    "dH": 29.2,
+    "tex": false
+   },
+   "black": {
+    "dY": 34.0,
+    "dH": 0.0,
+    "tex": false
+   }
+  },
+  "housefly": {
+   "wood": {
+    "dY": 51.8,
+    "dH": 2.6,
+    "tex": false
+   },
+   "grass": {
+    "dY": 22.3,
+    "dH": 51.8,
+    "tex": true
+   },
+   "tile": {
+    "dY": 73.6,
+    "dH": 153.6,
+    "tex": false
+   },
+   "carpet": {
+    "dY": 24.8,
+    "dH": 2.1,
+    "tex": true
+   },
+   "desk": {
+    "dY": 95.8,
+    "dH": 18.2,
+    "tex": false
+   },
+   "black": {
+    "dY": 67.8,
+    "dH": 0.0,
+    "tex": false
+   }
+  },
+  "bee": {
+   "wood": {
+    "dY": 67.0,
+    "dH": 7.2,
+    "tex": false
+   },
+   "grass": {
+    "dY": 37.5,
+    "dH": 61.6,
+    "tex": true
+   },
+   "tile": {
+    "dY": 88.8,
+    "dH": 163.4,
+    "tex": false
+   },
+   "carpet": {
+    "dY": 40.0,
+    "dH": 7.7,
+    "tex": true
+   },
+   "desk": {
+    "dY": 111.0,
+    "dH": 28.0,
+    "tex": false
+   },
+   "black": {
+    "dY": 52.6,
+    "dH": 0.0,
+    "tex": false
+   }
+  },
+  "butterfly": {
+   "wood": {
+    "dY": 12.9,
+    "dH": 1.7,
+    "tex": false
+   },
+   "grass": {
+    "dY": 42.4,
+    "dH": 56.1,
+    "tex": true
+   },
+   "tile": {
+    "dY": 8.9,
+    "dH": 157.9,
+    "tex": false
+   },
+   "carpet": {
+    "dY": 39.9,
+    "dH": 2.2,
+    "tex": true
+   },
+   "desk": {
+    "dY": 31.1,
+    "dH": 22.5,
+    "tex": false
+   },
+   "black": {
+    "dY": 132.5,
+    "dH": 0.0,
+    "tex": false
+   }
+  },
+  "mouse": {
+   "wood": {
+    "dY": 14.8,
+    "dH": 2.1,
+    "tex": false
+   },
+   "grass": {
+    "dY": 14.7,
+    "dH": 56.5,
+    "tex": true
+   },
+   "tile": {
+    "dY": 36.6,
+    "dH": 158.3,
+    "tex": false
+   },
+   "carpet": {
+    "dY": 12.2,
+    "dH": 2.6,
+    "tex": true
+   },
+   "desk": {
+    "dY": 58.8,
+    "dH": 22.9,
+    "tex": false
+   },
+   "black": {
+    "dY": 104.8,
+    "dH": 0.0,
+    "tex": false
+   }
+  },
+  "goldfish": {
+   "wood": {
+    "dY": 1.7,
+    "dH": 7.9,
+    "tex": false
+   },
+   "grass": {
+    "dY": 27.8,
+    "dH": 46.5,
+    "tex": true
+   },
+   "tile": {
+    "dY": 23.5,
+    "dH": 148.3,
+    "tex": false
+   },
+   "carpet": {
+    "dY": 25.3,
+    "dH": 7.4,
+    "tex": true
+   },
+   "desk": {
+    "dY": 45.7,
+    "dH": 12.9,
+    "tex": false
+   },
+   "black": {
+    "dY": 117.9,
+    "dH": 0.0,
+    "tex": false
+   }
+  }
+ }
 }

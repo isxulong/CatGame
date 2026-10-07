@@ -120,7 +120,8 @@ public class MainActivity extends Activity {
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
-        if (hasFocus) applyImmersive();
+        // R6-01 通道(c) 修复：重夺焦点时同时重新应用排除区（排除区随窗口状态恢复）
+        if (hasFocus) { applyImmersive(); applyGestureExclusion(); }
     }
 
     /** R4-09：回前台重夺沉浸，系统栏保持隐藏（AC-4-3） */
@@ -128,6 +129,10 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         applyImmersive();
+        // R6-01 通道(c) 修复：onResume 重夺沉浸的同时重新应用排除区
+        //（原实现仅重夺沉浸：排除区一旦被系统侧/insets 抖动清空，会话内不再恢复）。
+        // post 到下一帧确保视图已布局、insets 可用；空 insets 时 applyGestureExclusion 内部跳过。
+        if (webView != null) webView.post(this::applyGestureExclusion);
     }
 
     /** 吞返回键：不 goBack、不 finish */
@@ -188,27 +193,38 @@ public class MainActivity extends Activity {
     /**
      * R4-09：API 29+ 边缘手势排除。逐边取 systemGestures - mandatorySystemGestures
      * 为最大允许排除厚度，沿该边全宽/全高构造 rect；未开启时清空恢复系统手势（AC-4-4）。
+     *
+     * R6-01 通道(c) 修复：游戏态（exclusion 开启）下，若本帧 insets 为 null / 视图未布局 /
+     * 计算结果为空，一律【跳过本次设置】——保留既有排除区，绝不提交空列表
+     *（原实现空 insets 分支落到 setSystemGestureExclusionRects(空列表) = 静默清空排除区，
+     *  构成边缘手势逃逸通道）。唯一允许提交空列表的路径 = 面板/浮层打开（显式恢复系统手势）。
+     * 已知系统限制（清单裁决 3）：系统对每边排除区尊重上限 200dp（通道 a）、
+     * Home 手势不可排除（通道 b）——代码层无解，靠「系统 UI 触发后自动重隐藏 ≤1s 且
+     * 游戏状态不丢」兜底；API < 29（minSdk 24）无 exclusion API，仅沉浸式软拦截。
      */
     private void applyGestureExclusion() {
         if (Build.VERSION.SDK_INT < 29 || webView == null) return;
-        java.util.List<Rect> rects = new java.util.ArrayList<>();
         if (gestureExclusionEnabled) {
             WindowInsets in = webView.getRootWindowInsets();
             int w = webView.getWidth(), h = webView.getHeight();
-            if (in != null && w > 0 && h > 0) {
-                android.graphics.Insets sys = in.getSystemGestureInsets();
-                android.graphics.Insets man = in.getMandatorySystemGestureInsets();
-                int l = Math.max(0, sys.left - man.left);
-                int t = Math.max(0, sys.top - man.top);
-                int r = Math.max(0, sys.right - man.right);
-                int b = Math.max(0, sys.bottom - man.bottom);
-                if (l > 0) rects.add(new Rect(0, 0, l, h));
-                if (t > 0) rects.add(new Rect(0, 0, w, t));
-                if (r > 0) rects.add(new Rect(w - r, 0, w, h));
-                if (b > 0) rects.add(new Rect(0, h - b, w, h));
-            }
+            if (in == null || w <= 0 || h <= 0) return; // R6-01：空 insets/未布局 → 跳过，保留既有排除区
+            android.graphics.Insets sys = in.getSystemGestureInsets();
+            android.graphics.Insets man = in.getMandatorySystemGestureInsets();
+            int l = Math.max(0, sys.left - man.left);
+            int t = Math.max(0, sys.top - man.top);
+            int r = Math.max(0, sys.right - man.right);
+            int b = Math.max(0, sys.bottom - man.bottom);
+            java.util.List<Rect> rects = new java.util.ArrayList<>();
+            if (l > 0) rects.add(new Rect(0, 0, l, h));
+            if (t > 0) rects.add(new Rect(0, 0, w, t));
+            if (r > 0) rects.add(new Rect(w - r, 0, w, h));
+            if (b > 0) rects.add(new Rect(0, h - b, w, h));
+            if (rects.isEmpty()) return; // R6-01：游戏态空结果同样跳过（保险），不提交空列表
+            webView.setSystemGestureExclusionRects(rects);
+        } else {
+            // 面板/浮层打开：显式恢复系统手势——唯一允许提交空列表的路径
+            webView.setSystemGestureExclusionRects(new java.util.ArrayList<Rect>());
         }
-        webView.setSystemGestureExclusionRects(rects);
     }
 
     /** WindowInsets 安全区（刘海/圆角）偏移，供 JS 定位左上角退出热区 */
