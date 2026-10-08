@@ -34,10 +34,10 @@
     "after": {
      "span_l": 421,
      "span_r": 421,
-     "span_diff_pct": 0.0,
+     "span_diff_pct": 0,
      "area_l": 108916,
      "area_r": 108916,
-     "area_diff_pct": 0.0
+     "area_diff_pct": 0
     },
     "px": [
      848,
@@ -65,7 +65,7 @@
     "before": {
      "span_l": 302,
      "span_r": 302,
-     "span_diff_pct": 0.0,
+     "span_diff_pct": 0,
      "area_l": 63815,
      "area_r": 62147,
      "area_diff_pct": 2.61
@@ -73,10 +73,10 @@
     "after": {
      "span_l": 302,
      "span_r": 302,
-     "span_diff_pct": 0.0,
+     "span_diff_pct": 0,
      "area_l": 63815,
      "area_r": 63815,
-     "area_diff_pct": 0.0
+     "area_diff_pct": 0
     },
     "px": [
      610,
@@ -96,7 +96,7 @@
    ],
    "meanY": 63.3,
    "subjectMeanY": 90.8,
-   "subjectDomHue": 36.0,
+   "subjectDomHue": 36,
    "measure_note": "R6-05 复测口径：身体层 alpha>16，Y=0.299R+0.587G+0.114B；meanY 为 v1.4.1 留档旧口径，保留溯源",
    "derived_from": "housefly_2",
    "derivation_note": "外部图源（Wikimedia/Pexels/Pixabay）沙箱网络不可达，重选源路线受阻；按 R6-10 以 housefly_2 基准派生，同源 Pexels 许可，待真机目检",
@@ -114,10 +114,10 @@
     "after": {
      "span_l": 377,
      "span_r": 377,
-     "span_diff_pct": 0.0,
+     "span_diff_pct": 0,
      "area_l": 45622,
      "area_r": 45622,
-     "area_diff_pct": 0.0
+     "area_diff_pct": 0
     },
     "px": [
      760,
@@ -135,7 +135,7 @@
     1528,
     1192
    ],
-   "meanY": 94.0,
+   "meanY": 94,
    "subjectMeanY": 85.3,
    "subjectDomHue": 23.5,
    "measure_note": "R6-05 复测口径：身体层 alpha>16，Y=0.299R+0.587G+0.114B；meanY 为 v1.4.1 留档旧口径，保留溯源"
@@ -165,7 +165,7 @@
     766,
     647
    ],
-   "meanY": 165.0,
+   "meanY": 165,
    "subjectMeanY": 159.3,
    "subjectDomHue": 44.3,
    "measure_note": "R6-05 复测口径：身体层 alpha>16，Y=0.299R+0.587G+0.114B；meanY 为 v1.4.1 留档旧口径，保留溯源"
@@ -182,7 +182,7 @@
    ],
    "meanY": 66.2,
    "subjectMeanY": 66.2,
-   "subjectDomHue": 17.0,
+   "subjectDomHue": 17,
    "measure_note": "R6-05 复测口径：身体层 alpha>16，Y=0.299R+0.587G+0.114B；meanY 为 v1.4.1 留档旧口径，保留溯源"
   },
   {
@@ -597,7 +597,7 @@
    "bg": "wood",
    "sprite_meanY": 152.4,
    "bg_meanY": 146.4,
-   "dY": 6.0,
+   "dY": 6,
    "verdict": "不推荐"
   },
   {
@@ -645,7 +645,7 @@
    "bg": "wood",
    "sprite_meanY": 145.4,
    "bg_meanY": 146.4,
-   "dY": 1.0,
+   "dY": 1,
    "verdict": "不推荐"
   },
   {
@@ -737,9 +737,9 @@
    "verdict": "不推荐"
   }
  ],
- "match_rule_ver": "R6-05.v2",
+ "match_rule_ver": "R6-05.v3",
  "match_rule": {
-  "bad": "dY<40 | (dY<60 && dH<30) | (tex && dY<50 && dH<45) | (bg in nearBlack.bgs && dY<nearBlack.dyMax)",
+  "bad": "(dY<40 && dH<45) | (dY<60 && dH<20) | (tex && dY<50 && dH<45) | (bg in nearBlack.bgs && dY<nearBlack.dyMax)",
   "rec": "dY>=80 && dH>=45 (默认不挂标, showRecommendBadge=false)",
   "tex_bgs": [
    "grass",
@@ -749,8 +749,9 @@
   "subject_def": "身体层 alpha>16；翅膀叠加层不计入",
   "thresholds": {
    "dyMain": 40,
+   "dhRescue": 45,
    "dyAux": 60,
-   "dhAux": 30,
+   "dhAux": 20,
    "dyTex": 50,
    "dhTex": 45,
    "dyRec": 80,
@@ -818,8 +819,8 @@
     "tex": false
    },
    "black": {
-    "dY": 34.0,
-    "dH": 0.0,
+    "dY": 34,
+    "dH": 0,
     "tex": false
    }
   },
@@ -851,13 +852,13 @@
    },
    "black": {
     "dY": 67.8,
-    "dH": 0.0,
+    "dH": 0,
     "tex": false
    }
   },
   "bee": {
    "wood": {
-    "dY": 67.0,
+    "dY": 67,
     "dH": 7.2,
     "tex": false
    },
@@ -872,18 +873,18 @@
     "tex": false
    },
    "carpet": {
-    "dY": 40.0,
+    "dY": 40,
     "dH": 7.7,
     "tex": true
    },
    "desk": {
-    "dY": 111.0,
-    "dH": 28.0,
+    "dY": 111,
+    "dH": 28,
     "tex": false
    },
    "black": {
     "dY": 52.6,
-    "dH": 0.0,
+    "dH": 0,
     "tex": false
    }
   },
@@ -915,7 +916,7 @@
    },
    "black": {
     "dY": 132.5,
-    "dH": 0.0,
+    "dH": 0,
     "tex": false
    }
   },
@@ -947,7 +948,7 @@
    },
    "black": {
     "dY": 104.8,
-    "dH": 0.0,
+    "dH": 0,
     "tex": false
    }
   },
@@ -979,7 +980,7 @@
    },
    "black": {
     "dY": 117.9,
-    "dH": 0.0,
+    "dH": 0,
     "tex": false
    }
   }

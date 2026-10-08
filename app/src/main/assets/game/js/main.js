@@ -47,41 +47,39 @@ window.CC = window.CC || {};
 
     const verdict = CC.guard.judge(ev);
 
-    // 退出手势链（人类通道）：任何触点都可参与，但 guard 否决（猫掌/第二触点）即中断。
-    // F4 按压级否决跟踪：按压会话内任意帧被否决即阻断本次 fire（含时间驱动路径）。
+    // 退出手势链（人类通道）：R8-04 只跟踪热区触点 id——非 tracking 触点出现/移动/抬起均不取消；
+    // 防猫否决只看 tracking 触点自身（cancel.veto 路径置按压级否决标志，时间驱动 fire 仍受其阻断）。
     if (ev.action === 0) CC._hotPressVetoed = false;
     const g = CC.exitGesture.feed(ev);
-    if (CC.exitGesture.isTracking() && verdict.vetoed) {
-      CC._hotPressVetoed = true;
-      // R6 修复：按压中触发面积否决不再静默——进度环变红叉 + 文案提示
-      if (verdict.reason === "palm-area") showHoldVeto();
-    }
     if (g) {
       if (g.type === "progress") showHoldProgress(g.ratio);
-      else if (g.type === "cancel") showHoldCancel(); // R4：取消收缩淡出 + 灰色×
-      else if (g.type === "fire" && !verdict.vetoed && !CC._hotPressVetoed) {
+      else if (g.type === "cancel") {
+        if (g.veto) { CC._hotPressVetoed = true; showHoldVeto(); } // R6：按压中被面积否决——红叉 + 文案提示
+        else showHoldCancel(); // R4：取消收缩淡出 + 灰色×
+      }
+      else if (g.type === "fire" && !CC._hotPressVetoed) {
         holdPulseThenQuick(); // R4-07：满 100% 150ms 脉冲后直达快捷设置浮层
         return;
       }
     }
 
-    if (ev.action === 0 && ev.count === 1) {
-      if (verdict.vetoed) {
-        // R4 猫掌：只触动效不判命中
-        CC.effects.trigger(CC.config.fxType, p.x, p.y);
-        CC.perfLog("guard-veto", { reason: verdict.reason, injected: !!ev.injected });
+    // R8-02：每个新增触点（action=0 首按 / action=5 副指落下）独立走完整命中/动效流程；
+    // 防猫否决只否决命中与计分，动效照播，不波及其他触点（verdict.blockedPointerIds 为触点 id 集）。
+    if (ev.action === 0 || ev.action === 5) {
+      CC.effects.trigger(CC.config.fxType, p.x, p.y); // D5 动效照播（含否决触点）
+      if (verdict.blockedPointerIds.includes(p.id)) {
+        CC.perfLog("guard-veto", { reason: verdict.reason, pointerId: p.id, injected: !!ev.injected });
         return;
       }
-      // D5 每次 touch-down 触发一次动效
-      CC.effects.trigger(CC.config.fxType, p.x, p.y);
       fxLastPoint.set(p.id, { x: p.x, y: p.y });
       // A4 命中判定
       const hit = CC.engine.hitTest(p.x, p.y);
       if (hit) { CC.engine.onHit(hit); CC.effects.trigger("hitburst", p.x, p.y); CC.hud.refresh(); } // R6-08：拍中爆裂反馈
       else CC.engine.startle(p.x, p.y); // §7 拍空：附近目标受惊远离 1s
     } else if (ev.action === 2) {
-      const q = ev.pts.find(t => fxLastPoint.has(t.id));
-      if (q) {
+      // R8-03：MOVE 遍历所有被跟踪触点，各自独立 ≥48dp 节流 retrigger（节流语义不变，互不干扰）
+      for (const q of ev.pts) {
+        if (!fxLastPoint.has(q.id)) continue;
         const lp = fxLastPoint.get(q.id);
         if (Math.hypot(q.x - lp.x, q.y - lp.y) >= CC.debug.moveRetriggerDp) {
           CC.effects.trigger(CC.config.fxType, q.x, q.y);
@@ -89,6 +87,7 @@ window.CC = window.CC || {};
         }
       }
     } else if (ev.action === 1 || ev.action === 3 || ev.action === 6) {
+      // R8-03：按 pointerId 精确清理（action=6 时 actionIndex 即抬起触点），不再影响其他触点
       fxLastPoint.delete(p.id);
     }
   };
@@ -201,7 +200,8 @@ window.CC = window.CC || {};
   })();
 
   /* R4-07 需求9：B4 验证滑块模块整体移除——长按满直达 CC.quick 快捷设置浮层。
-   * 防猫唯一且充分门槛 = touch.js 定点静止长按 3 秒 + 面积否决 + 第二触点否决（千次流 0 突破由该层贡献）。 */
+   * R8-04（v1.4.4）：防猫门槛 = 定点静止长按 3 秒 + 逐触点面积否决（启动判定 + 计时中兜底）；
+   * 「第二触点否决」已随 R8-01 拆除——猫多爪在屏时人仍可长按热区唤出浮层。 */
 
   function loop(now) {
     const dt = Math.min(0.05, (now - last) / 1000 || 0.016);

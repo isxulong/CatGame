@@ -69,14 +69,19 @@ CC.panel = (function () {
    * R7-01（终裁 B 案）第四分支：bg ∈ nearBlack.bgs 且 dY < nearBlack.dyMax → 不推荐，
    * 修复苍蝇×纯黑落入 (dyAux, dyMax) 真空带不挂标；bg 名单仅收紧、dY 直接命中，与既有辅助分支同构。
    * bad=不推荐（红标，样式同 R6-04）；ok=中性不挂标；rec=推荐（绿标，配置项默认关）。
-   * R6-04：苍蝇×纯黑由本规则统一产出「不推荐」，原 lowvis 置灰体系已整体下线。 */
+   * R6-04：苍蝇×纯黑由本规则统一产出「不推荐」，原 lowvis 置灰体系已整体下线。
+   * R8-08（v1.4.4）：判定升级 R6-05.v3——主分支加 dH≥dhRescue(45°) 色度救援（dY<40 且 dH<45 才
+   * 判 bad，色相差大的组合不再被明度单通道误伤）；辅助分支 dhAux 30°→20°（同色系边界收窄）。
+   * 近黑分支不受救援（R7-01 终裁不动）；推荐档与高纹理分支不动。 */
   function cellVerdict(cat, bgName) {
     const m = CC.engine && CC.engine.manifest && CC.engine.manifest.match;
     const t = (CC.config.tuning && CC.config.tuning.match) || {};
     const cell = m && m[cat] && m[cat][bgName];
     if (!cell) return "ok";
-    if (cell.dY < (t.dyMain != null ? t.dyMain : 40)) return "bad";
-    if (cell.dY < (t.dyAux != null ? t.dyAux : 60) && cell.dH < (t.dhAux != null ? t.dhAux : 30)) return "bad";
+    /* R8-08 修订一（核心）：色度救援——dY<dyMain 还须 dH<dhRescue 才判 bad */
+    if (cell.dY < (t.dyMain != null ? t.dyMain : 40) && cell.dH < (t.dhRescue != null ? t.dhRescue : 45)) return "bad";
+    /* R8-08 修订二：同色系收紧边界收窄——dhAux 30°→20° */
+    if (cell.dY < (t.dyAux != null ? t.dyAux : 60) && cell.dH < (t.dhAux != null ? t.dhAux : 20)) return "bad";
     if (cell.tex && cell.dY < (t.dyTex != null ? t.dyTex : 50) && cell.dH < (t.dhTex != null ? t.dhTex : 45)) return "bad";
     /* R7-01 近黑专项（第四分支，置于「推荐」档判定之前；回退默认与 tuning 出厂值一致） */
     const nb = t.nearBlack || {};
@@ -87,12 +92,15 @@ CC.panel = (function () {
     return "ok";
   }
   function bgVerdict(bgName) {
-    let rec = false;
+    /* R8-09（v1.4.4）：聚合口径 ANY-bad → ALL-bad——全部所选品类均 bad 才挂红标；
+     * 新语义「这个背景对你选的所有动物都不推荐」；单选时 ALL=ANY 完全等价（零回归）。 */
+    let rec = false, allBad = CC.config.cats.length > 0;
     for (const c of CC.config.cats) {
       const v = cellVerdict(c, bgName);
-      if (v === "bad") return "bad"; // 任一所选品类不推荐即挂红标
+      if (v !== "bad") allBad = false; // 只要有所选品类非 bad，该背景不挂红标
       if (v === "rec") rec = true;
     }
+    if (allBad) return "bad";
     return rec ? "rec" : "ok";
   }
 

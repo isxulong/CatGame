@@ -1,16 +1,16 @@
 #!/usr/bin/env node
-/* DOM/AC 静态套件：v1.4.3 R6+R7-01 验收的静态部分
+/* DOM/AC 静态套件：v1.4.4 R8 验收的静态部分（S5 同步改写）
  * DOM 套件：panel.js/main.js 引用的元素 id 在 index.html 中均存在（getElementById 交叉核对）
  * AC 套件：
  *  AC-1  源码无 F7_VERDICT / DARK_BGS / LOWVIS_CATS / lowvis / _jitter 残留（R6-03/04/05）
- *  AC-2  versionCode 11 / versionName 1.4.3（build.gradle）
- *  AC-3  maxFxInstances = 8（data.js）
- *  AC-4  MATCH_RULE_VER = R6-05.v2；tuning 块含全部 R6 参数键 + R7-01 nearBlack
- *  AC-5  R6 阈值无散落硬编码：audio.js 无 0.012/0.7/1000/135 裸字面量；panel.js 无 40/60/80 阈值裸字面量（只经 tuning）；engine.js 无 0.10/0.15 裸幅值（只经 tuning 默认）
- *  AC-6  manifest.js/manifest.json 一致、match 36 组齐全、match_rule_ver 正确
+ *  AC-2  versionCode 12 / versionName 1.4.4（build.gradle，R8 版本升位）
+ *  AC-3  maxFxInstances = 12（data.js，R8-06：8→12）
+ *  AC-4  MATCH_RULE_VER = R6-05.v3；tuning 块含全部 R6 参数键 + R7-01 nearBlack + R8 dhRescue
+ *  AC-5  R6/R8 阈值无散落硬编码：audio.js 无 0.012/0.7/1000/135 裸字面量；panel.js 无 40/60/80 阈值裸字面量（只经 tuning）；engine.js 无 0.10/0.15 裸幅值（只经 tuning 默认）
+ *  AC-6  manifest.js/manifest.json 一致、match 36 组齐全、match_rule_ver=R6-05.v3、thresholds 与 data.js 双镜像（dhRescue=45/dhAux=20，R8-10）
  *  AC-7  源码树无 keystore / 密码 / keystore.properties（红线）
- *  AC-8  R6-05+R7-01 验收组判定复核（读 match_table.json）：5 组须 bad、ladybug×desk 不得 bad
- *  AC-9  audio.js 增益链路节点存在（humBus/compressor/lowpass）；effects.js hitburst 存在；上限 8 回收最旧语义
+ *  AC-8  R6-05+R7-01 验收组判定复核（读 match_table.json rows）：4 组须 bad、ladybug×desk 不得 bad（R8-11：既有断言 v3 复算保持成立，重跑确认）
+ *  AC-9  audio.js 增益链路节点存在（humBus/compressor/lowpass）；effects.js hitburst 存在；上限回收最旧语义
  *  AC-10 屏幕钉住误导文案已删改（panel.js 无 LockTask/屏幕钉住 残留；引导文案为重隐藏口径）
  */
 const fs = require("fs"), path = require("path");
@@ -46,18 +46,20 @@ const javaStripped = strip(java);
 for (const tok of ["F7_VERDICT", "DARK_BGS", "LOWVIS_CATS", "lowvis", "_jitter"]) {
   T("AC-1 无残留 " + tok, !allJs.includes(tok));
 }
-// AC-2 版本
-T("AC-2 versionCode 11", /versionCode\s+11/.test(gradle));
-T("AC-2 versionName 1.4.3", /versionName\s+"1\.4\.3"/.test(gradle));
-// AC-3
-T("AC-3 maxFxInstances 8", /maxFxInstances:\s*8/.test(data));
+// AC-2 版本（R8：versionCode 11→12、versionName 1.4.3→1.4.4）
+T("AC-2 versionCode 12", /versionCode\s+12/.test(gradle));
+T("AC-2 versionName 1.4.4", /versionName\s+"1\.4\.4"/.test(gradle));
+T("AC-2 旧版本不残留", !/versionCode\s+11\b/.test(gradle) && !/1\.4\.3/.test(gradle));
+// AC-3（R8-06：8→12）
+T("AC-3 maxFxInstances 12", /maxFxInstances:\s*12/.test(data));
 // AC-4
-T("AC-4 MATCH_RULE_VER", data.includes('"R6-05.v2"') || data.includes("R6-05.v2"));
+T("AC-4 MATCH_RULE_VER v3", data.includes("R6-05.v3"));
+T("AC-4 旧规则版本不残留", !data.includes("R6-05.v2"));
 const needTuning = ["humGain", "humLowpassHz", "humBusGain", "compThresholdDb", "compRatio", "hitGain", "hitDurMs",
   "varSizeAmp", "varSpeedAmp", "spdCompPerSize", "spdCompMax"];
 const missT = needTuning.filter(k => !data.includes(k));
 T("AC-4 tuning 音频/浮动参数齐", missT.length === 0, "missing " + missT.join(","));
-const needMatch = ["dyMain", "dyAux", "dhAux", "dyTex", "dhTex", "dyRec", "dhRec", "highTextureBgs", "nearBlack", "showRecommendBadge"];
+const needMatch = ["dyMain", "dhRescue", "dyAux", "dhAux", "dyTex", "dhTex", "dyRec", "dhRec", "highTextureBgs", "nearBlack", "showRecommendBadge"];
 const missM = needMatch.filter(k => !data.includes(k));
 T("AC-4 tuning.match 参数齐", missM.length === 0, "missing " + missM.join(","));
 // AC-5 散落硬编码（在对应文件内不应出现的裸字面量赋值）
@@ -79,7 +81,15 @@ eval(A("app/src/main/assets/game/manifest.js"));
 const mj = window.CC_MANIFEST;
 const mjson = JSON.parse(A("app/src/main/assets/game/manifest.json"));
 T("AC-6 manifest js==json", JSON.stringify(mj) === JSON.stringify(mjson));
-T("AC-6 match_rule_ver", mj.match_rule_ver === "R6-05.v2");
+T("AC-6 match_rule_ver v3", mj.match_rule_ver === "R6-05.v3");
+// R8-10：thresholds 双镜像——manifest 与 data.js 出厂值逐键一致（dhRescue=45 / dhAux 30→20）
+const needThresh = { dyMain: 40, dhRescue: 45, dyAux: 60, dhAux: 20, dyTex: 50, dhTex: 45, dyRec: 80, dhRec: 45 };
+const th = (mj.match_rule && mj.match_rule.thresholds) || {};
+const thMismatch = Object.entries(needThresh).filter(([k, v]) => th[k] !== v).map(([k, v]) => `${k}: manifest=${th[k]} expect=${v}`);
+T("AC-6 thresholds 双镜像一致", thMismatch.length === 0, thMismatch.join(","));
+T("AC-6 bad 规则串含 dhRescue/dhAux 口径", typeof (mj.match_rule && mj.match_rule.bad) === "string" && mj.match_rule.bad.includes("dH<45") && mj.match_rule.bad.includes("dH<20") && mj.match_rule.bad.includes("dY<40") && mj.match_rule.bad.includes("dY<60"));
+const dataThOk = /dhRescue:\s*45/.test(data) && /dhAux:\s*20/.test(data);
+T("AC-6 data.js 阈值出厂值 dhRescue=45/dhAux=20", dataThOk);
 const cats6 = ["ladybug", "housefly", "bee", "butterfly", "mouse", "goldfish"];
 const bgs6 = ["wood", "grass", "tile", "carpet", "desk", "black"];
 let m36 = 0;
@@ -93,7 +103,8 @@ T("AC-7 无 keystore.properties", !files.some(f => f.endsWith("keystore.properti
 const secret = files.filter(f => /\.(java|js|gradle|json|html|xml)$/.test(f)).some(f => A(path.relative(SRC, f)).includes(process.env.CATCATCH_KEY_PASSWORD || "\u0000never\u0000"));
 T("AC-7 源码无密码串", !secret);
 // AC-8
-const mt = JSON.parse(fs.readFileSync(path.join(__dirname, "../artifacts/evidence/match_table.json"), "utf8"));
+const mtDoc = JSON.parse(fs.readFileSync(path.join(__dirname, "../artifacts/evidence/match_table.json"), "utf8"));
+const mt = mtDoc.rows; // S6 生成器产物：{generated,rule_ver,thresholds,source,rows,summary}
 const get = (c, b) => mt.find(r => r.cat === c && r.bg === b).verdict;
 T("AC-8 housefly×wood bad", get("housefly", "wood") === "bad");
 T("AC-8 housefly×carpet bad", get("housefly", "carpet") === "bad");

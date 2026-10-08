@@ -22,8 +22,11 @@ CC.FX_LABEL = { ripple: "涟漪扩散", paw: "爪印", stars: "星星迸发", pa
  * 输入数据（36 组 dY/dH/纹理标记）离线预计算写入 manifest.match，运行时只读表 + 算术判定
  *（运行时零图像处理架构不动摇）。阈值为真机校准项，集中 CC.config.tuning.match 可调。
  * R7-01（终裁 B 案）：新增近黑专项分支——bg ∈ nearBlack.bgs 且 dY < nearBlack.dyMax → 不推荐，
- * 修复苍蝇×纯黑（dY=67.8）落入 (dyAux, dyMax) 真空带不挂标的缺陷；名单化配置，后续近黑背景只改配置。 */
-CC.MATCH_RULE_VER = "R6-05.v2";
+ * 修复苍蝇×纯黑（dY=67.8）落入 (dyAux, dyMax) 真空带不挂标的缺陷；名单化配置，后续近黑背景只改配置。
+ * R8-08（v1.4.4）：升级 R6-05.v3——主分支加 dH≥dhRescue(45°) 色度救援（dY<40 且 dH<45 才 bad），
+ * 辅助分支 dhAux 30°→20°（同色系收窄）；近黑分支不受救援（R7-01 终裁不动）。
+ * v3 效果（36 组）：挂标 23→15、翻档 8 组零反向（蜜蜂×草地、苍蝇×草地、蝴蝶×瓷砖、老鼠×草地/瓷砖/浅色桌面、金鱼×草地/瓷砖）。 */
+CC.MATCH_RULE_VER = "R6-05.v3";
 
 /* R6-04：DARK_BGS / LOWVIS_CATS 置灰提示体系整体下线（与动态「不推荐」徽标不得并存）。
  * 苍蝇×纯黑由 R6-05 动态规则判定挂红底「不推荐」徽标（同位置/样式/尺寸），仅提示不禁选。 */
@@ -58,10 +61,12 @@ CC.DEFAULTS = {
       varSpeedAmp: 0.15,          // 速度个体浮动幅度 ±15%（clamp 0.85–1.15）
       spdCompPerSize: 0.5,        // 速体负相关：sizeMul 每偏 +1% → spdMul 补 -0.5%
       spdCompMax: 0.05,           // 速体负相关补偿总量上限 ±5%
-      /* R6-05 匹配度规则阈值（语义：「不推荐」只能由 dY 直接命中，dH/纹理仅辅助收紧） */
+      /* R6-05 匹配度规则阈值（语义：「不推荐」只能由 dY 直接命中，dH/纹理仅辅助收紧）
+       * R8-08（v1.4.4 / R6-05.v3）：新增 dhRescue 色度救援、dhAux 30→20（清单第三章，真机校准项 C1/C2） */
       match: {
         dyMain: 40,               // 主分支：dY < 40 → 不推荐
-        dyAux: 60, dhAux: 30,     // 辅助分支一：dY < 60 且 dH < 30° → 不推荐
+        dhRescue: 45,            // R8-08 修订一（核心）：主分支色度救援——dY<40 还须 dH<45° 才不推荐（C1：若过宽收紧至 55°）
+        dyAux: 60, dhAux: 20,     // 辅助分支一：dY < 60 且 dH < 20° → 不推荐（R8-08 修订二：30°→20° 同色系收窄）
         dyTex: 50, dhTex: 45,     // 辅助分支二：高纹理 且 dY < 50 且 dH < 45° → 不推荐
         dyRec: 80, dhRec: 45,     // 推荐档：dY ≥ 80 且 dH ≥ 45°（默认不挂标）
         highTextureBgs: ["grass", "carpet"], // 高纹理背景名单（静态属性）
@@ -81,9 +86,9 @@ CC.DEFAULTS = {
     areaConsecFrames: 3,          // B1 连续多帧大面积才否决
     minorMajorRatio: 0.8,         // 椭圆面积换算 minor=major*ratio
     calibWindowN: 20,             // B3 标定缺失检测窗口 N≥20（偏严格：全恒定才判缺失）
-    maxPointers: 5,               // R4 同时触点 >5 判猫掌
+    maxPointers: 5,               // R4/R8-05：在屏触点 >5 时超出的触点不判命中（猫掌口径，动效照播，前 5 指不受影响）
     moveRetriggerDp: 48,          // D5 滑动触点每移动 ≥48dp 触发一次动效（暂定）
-    maxFxInstances: 8,            // R6-08（裁决 7）：同屏动效实例上限 5→8，溢出策略改为回收最旧实例（effects.js）
+    maxFxInstances: 12,           // R8-06（v1.4.4）：8→12——5 爪齐下瞬时「触发动效+命中爆裂」可达 10 实例，8 会回收最旧吞掉先触发动效；12 上限帧率实测留档（perf_layout P2 同口径）
     degradeLowFps: 30, degradeLowSec: 3,   // E2 连续 3s <30fps 逐级降级
     degradeHighFps: 45, degradeHighSec: 10,// E2 恢复需连续 10s ≥45fps
     degradeDwellSec: 30,          // E2 每级最小驻留 30s
